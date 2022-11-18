@@ -1,0 +1,6 @@
+bin = "/usr/bin/env curl"
+
+targets = ["commander"]
+
+requirements = ["bash", "curl"]
+
