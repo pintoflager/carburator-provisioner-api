@@ -1,6 +1,7 @@
 bin = "/usr/bin/env curl"
 
 targets = ["commander"]
+providers = ["dns"]
 
 requirements = ["bash", "curl"]
 
