@@ -25,8 +25,8 @@ create_zone() {
         -H "Auth-API-Token: $1" \
         -d $'{"name": "'"$2"'","ttl": 86400}' > "$3"
 
-    # Assuming create failed as we don't have a zone.
-	if [[ $(jq -rc ".zone | length" "$output") -eq 0 ]]; then
+    # Assuming create failed as we cant load a zone id.
+	if carburator get json zone.id string --path "$3"; then
 		rm -f "$3"; exit 110
 	fi
 }
@@ -50,19 +50,8 @@ get_zone() {
         -H 'Content-Type: application/json; charset=utf-8' > "$3"
 }
 
-verify_zone() {
-    local id;
-
-    id=$(curl "https://dns.hetzner.com/api/v1/zones/$1" \
-        -s \
-        -H "Auth-API-Token: $token" \
-        -H 'Content-Type: application/json; charset=utf-8' | jq -rc ".zone.id")
-
-    if [[ $id != "$1" ]]; then return 1; fi
-}
-
 ###
-# Only thing between the api calls and complete fuckup is you.
+# Only thing between the api call and a complete disaster is you.
 # Make sure to check existence of the output file, verify that the zone in
 # it exists and if so, never ever, never never destroy the zone.
 #
@@ -70,11 +59,14 @@ verify_zone() {
 # this is new project or we have failure of previous intent on our hands.
 #
 if [[ -e $output ]]; then
-    zone_id=$(jq -rc ".zone.id")
+    zone_id=$(carburator get json zone.id string --path "$output")
 
     # Same zone ID on localhost and remote -- nothing to do.
-    if [[ $zone_id != null ]]; then
-        verify_zone "$zone_id" && exit
+    if [[ -n $zone_id ]] && get_zone "$token" "$zone_id" "$output"; then
+        verify_id=$(carburator get json zone.id string --path "$output")
+
+        # Zone ID's before and after query match.
+        if [[ $zone_id == "$verify_id" ]]; then exit; fi
     fi
 fi
 
@@ -85,13 +77,15 @@ carburator fn echo attention \
 find_zones "$token" "$DOMAIN_FQDN" "$existing_zones"
 
 # No exitsting zones matching our fully qualified domain name (FQDN)
-if [[ $(jq -rc '.zones | length' "$existing_zones") -eq 0 ]]; then
+zones=$(carburator get json zones array --path "$existing_zones") || exit 120
+
+if [[ -z $zones || $(wc -l <<< "$zones") -eq 0 ]]; then
     rm -f "$existing_zones"
     create_zone "$token" "$DOMAIN_FQDN" "$output" && exit
 fi
 
 # Only one zone matches
-if [[ $(jq -rc '.zones | length' "$existing_zones") -eq 1 ]]; then
+if [[ $(wc -l <<< "$zones") -eq 1 ]]; then
     carburator fn echo warn \
         "Duplicate DNS zone for $DOMAIN_FQDN found from Hetzner DNS."
 
@@ -106,7 +100,8 @@ if [[ $(jq -rc '.zones | length' "$existing_zones") -eq 1 ]]; then
         rm -f "$existing_zones"
         exit
     else
-        get_zone "$token" "$(jq -rc '.zones[0].id' "$existing_zones")" "$output"
+        id=$(carburator get json zones.0.id text --path "$existing_zones") || exit 120
+        get_zone "$token" "$id" "$output"
         rm -f "$existing_zones"
         exit
     fi
