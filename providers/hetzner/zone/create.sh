@@ -27,12 +27,13 @@ create_zone() {
 
     # Assuming create failed as we cant load a zone id.
 	if carburator get json zone.id string --path "$3"; then
-		rm -f "$3"; exit 110
+        carburator print terminal error "Create zone '$2' failed."
+		rm -f "$3"; return 1
 	fi
 }
 
 destroy_zone() {
-    curl -X "DELETE" "https://dns.hetzner.com/api/v1/zones/$1" \
+    curl -X "DELETE" "https://dns.hetzner.com/api/v1/zones/$2" \
         -s \
         -H "Auth-API-Token: $1" &> /dev/null
 }
@@ -81,7 +82,12 @@ zones=$(carburator get json zones array --path "$existing_zones") || exit 120
 
 if [[ -z $zones || $(wc -l <<< "$zones") -eq 0 ]]; then
     rm -f "$existing_zones"
-    create_zone "$token" "$DOMAIN_FQDN" "$output" && exit
+    
+    if create_zone "$token" "$DOMAIN_FQDN" "$output"; then
+        exit
+    else
+        exit 110
+    fi
 fi
 
 # Only one zone matches
@@ -94,13 +100,18 @@ if [[ $(wc -l <<< "$zones") -eq 1 ]]; then
         --yes-val "Destroy old zone and create new one" \
         --no-val "Keep the found zone with it's records"; exitcode=$?
 
+    id=$(carburator get json zones.0.id string --path "$existing_zones") || \
+        exit 120
+
     if [[ $exitcode -eq 0 ]]; then
-        destroy_zone "$token"
-        create_zone "$token" "$DOMAIN_FQDN" "$output"
-        rm -f "$existing_zones"
-        exit
+        destroy_zone "$token" "$id"
+        if create_zone "$token" "$DOMAIN_FQDN" "$output"; then
+            rm -f "$existing_zones"
+            exit
+        else
+            exit 110
+        fi
     else
-        id=$(carburator get json zones.0.id string --path "$existing_zones") || exit 120
         get_zone "$token" "$id" "$output"
         rm -f "$existing_zones"
         exit
