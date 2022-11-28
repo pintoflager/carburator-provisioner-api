@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-carburator fn echo info "Invoking Hetzner's DNS API provisioner..."
+carburator print terminal info "Invoking Hetzner's DNS API provisioner..."
 
 resource="zone"
 output="$PROVISIONER_PROVIDER_PATH/${DOMAIN_FQDN}_${resource}.json"
@@ -13,7 +13,7 @@ existing_zones="$PROVISIONER_PROVIDER_PATH/${DOMAIN_PROVIDER_NAME}_zones.json"
 token=$(carburator get secret "$DOMAIN_PROVIDER_SECRET_0" --user root); exitcode=$?
 
 if [[ -z $token || $exitcode -gt 0 ]]; then
-	carburator fn echo error \
+	carburator print terminal error \
 		"Could not load Hetzner DNS API token from secret. Unable to proceed"
 	exit 120
 fi
@@ -70,7 +70,7 @@ if [[ -e $output ]]; then
     fi
 fi
 
-carburator fn echo attention \
+carburator print terminal attention \
     "DNS zone file for $DOMAIN_FQDN not found, searching existing zones..."
 
 # Output file doesn't exist or zone verify failed.
@@ -86,7 +86,7 @@ fi
 
 # Only one zone matches
 if [[ $(wc -l <<< "$zones") -eq 1 ]]; then
-    carburator fn echo warn \
+    carburator print terminal warn \
         "Duplicate DNS zone for $DOMAIN_FQDN found from Hetzner DNS."
 
     carburator prompt yes-no \
@@ -100,7 +100,7 @@ if [[ $(wc -l <<< "$zones") -eq 1 ]]; then
         rm -f "$existing_zones"
         exit
     else
-        id=$(carburator get json zones.0.id text --path "$existing_zones") || exit 120
+        id=$(carburator get json zones.0.id string --path "$existing_zones") || exit 120
         get_zone "$token" "$id" "$output"
         rm -f "$existing_zones"
         exit
@@ -109,7 +109,7 @@ fi
 
 # Still here, more than one (1) matching zones, how is that even possible, I don't
 # know, but it seems to have happened.
-carburator fn echo error \
+carburator print terminal error \
     "Multiple DNS zones match to $DOMAIN_FQDN, Unable to proceed with zone \
 registration. Use your human touch with existing DNS zones before trying again."
 
