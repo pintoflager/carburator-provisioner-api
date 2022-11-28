@@ -26,7 +26,7 @@ create_zone() {
         -d $'{"name": "'"$2"'","ttl": 86400}' > "$3"
 
     # Assuming create failed as we cant load a zone id.
-	if carburator get json zone.id string --path "$3"; then
+	if ! carburator has json zone.id --path "$3"; then
         carburator print terminal error "Create zone '$2' failed."
 		rm -f "$3"; return 1
 	fi
@@ -100,8 +100,7 @@ if [[ $(wc -l <<< "$zones") -eq 1 ]]; then
         --yes-val "Destroy old zone and create new one" \
         --no-val "Keep the found zone with it's records"; exitcode=$?
 
-    id=$(carburator get json zones.0.id string --path "$existing_zones") || \
-        exit 120
+    id=$(carburator get json zones.0.id string --path "$existing_zones") || exit 120
 
     if [[ $exitcode -eq 0 ]]; then
         destroy_zone "$token" "$id"
