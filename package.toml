@@ -1,7 +1,7 @@
 name = "api"
 version = "0.1.0"
-collection = "provisioner"
+collection = "Provisioner"
 bin = "/usr/bin/env curl"
 
-targets = ["commander"]
-providers = ["dns"]
+targets = ["Commander"]
+providers = ["DnsProvider"]
