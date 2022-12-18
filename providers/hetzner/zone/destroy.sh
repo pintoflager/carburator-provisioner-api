@@ -1,17 +1,31 @@
 #!/usr/bin/env bash
 
-local zonefile; zonefile=$(provider-dns-zonefile)
-local zone; zone=$(jq -rc ".zone.id" "$zonefile")
+resource="zone"
+output="$PROVISIONER_PROVIDER_PATH/${DOMAIN_FQDN}_${resource}.json"
+existing_zones="$PROVISIONER_PROVIDER_PATH/${DOMAIN_PROVIDER_NAME}_zones.json"
+id=$(carburator get json zones.0.id string --path "$existing_zones") || exit 120
 
-# Delete dns zone for the project
-curl -X "DELETE" "https://dns.hetzner.com/api/v1/zones/$zone" \
--s \
--H "Auth-API-Token: $dns_token" > dns-del.log
 
-if [[ $(cat "dns-del.log") == '{"error":{}}' ]]; then
-echo-success "DNS zone for your project was deleted"
-else
-echo-error "Check your hezner dns console, automatic zone deletion might of failed."
+###
+# Get API token from secrets or bail early.
+#
+token=$(carburator get secret "$DOMAIN_PROVIDER_SECRET_0" --user root); exitcode=$?
+
+if [[ -z $token || $exitcode -gt 0 ]]; then
+	carburator print terminal error \
+		"Could not load Hetzner DNS API token from secret. Unable to proceed"
+	exit 120
 fi
 
-rm -f dns-del.log "$zonefile"
+# TODO: should extract http response code and != 200, failed.
+destroy_zone() {
+    curl -X "DELETE" "https://dns.hetzner.com/api/v1/zones/$2" \
+        -s \
+        -H "Auth-API-Token: $1" &> /dev/null
+}
+
+
+# Delete dns zone for the project
+destroy_zone "$token" "$id"
+
+rm -f "$output"
