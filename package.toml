@@ -1,7 +1,9 @@
 name = "api"
 version = "0.1.0"
 collection = "Provisioner"
-bin = "/usr/bin/env curl"
+project_roles = ["Commander"]
 
-targets = ["Commander"]
 providers = ["DnsProvider"]
+retry_times = 3
+retry_interval = 10
+boot_wait = 15
