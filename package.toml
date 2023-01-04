@@ -1,7 +1,7 @@
 name = "api"
 version = "0.1.0"
 collection = "Provisioner"
-project_roles = ["Commander"]
+platforms = ["Commander"]
 
 providers = ["DnsProvider"]
 retry_times = 3
